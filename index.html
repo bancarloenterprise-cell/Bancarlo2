@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bancarlo Cloud Móvil v5.2</title>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+        body { 
+            font-family: '-apple-system', BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            background-color: #000000; 
+            margin: 0; 
+            padding: 0 0 20px 0; 
+            color: #f1f5f9;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .top-bar {
+            background-color: #10b981;
+            color: #000000;
+            padding: 20px 15px;
+            text-align: center;
+            font-weight: 800;
+            font-size: 18px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            margin-bottom: 15px;
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 25px 15px 10px 15px;
+        }
+        .section-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 0;
+        }
+        .btn-reset-history {
+            background: none;
+            border: none;
+            color: #ef4444;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        .btn-reset-history:hover {
+            background: rgba(239, 68, 68, 0.1);
+        }
+        .carousel-container {
+            display: flex;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            gap: 15px;
+            padding: 5px 15px 20px 15px;
+            scrollbar-width: none;
+        }
+        .carousel-container::-webkit-scrollbar { display: none; }
+        .bank-card { 
+            flex: 0 0 88%;
+            scroll-snap-align: center;
+            background: #111111; 
+            color: #e2cb99; 
+            padding: 24px; 
+            border-radius: 16px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.7); 
+            position: relative;
+            box-sizing: border-box;
+            transition: transform 0.2s, border 0.2s;
+            cursor: pointer;
+            border: 2px solid #222222;
+            min-height: 200px;
+        }
+        .bank-card.active { border-color: #e2cb99; transform: scale(1.02); }
+        .card-top { display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 13px; letter-spacing: 1px; }
+        
+        .info-trigger-circle {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background-color: #10b981;
+            color: #000000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .info-trigger-circle:hover {
+            background-color: #059669;
+        }
+
+        .chip-contactless { margin-top: 15px; display: flex; flex-direction: column; gap: 4px; }
+        .chip { width: 38px; height: 28px; background: linear-gradient(135deg, #e2cb99 0%, #b89855 100%); border-radius: 6px; }
+        .contactless { font-size: 16px; margin-left: 4px; }
+        .card-label { font-size: 11px; text-transform: uppercase; color: #888888; letter-spacing: 1px; margin-top: 20px; }
+        .card-balance { font-size: 28px; font-weight: bold; margin-top: 2px; color: #ffffff; }
+        .card-bottom { margin-top: 20px; display: flex; justify-content: space-between; align-items: flex-end; }
+        .card-brand { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+        .mastercard-logo { display: flex; align-items: center; gap: 5px; }
+        .mc-text { font-size: 11px; font-weight: bold; color: #888888; }
+        .circles { display: flex; }
+        .circle-1, .circle-2 { width: 20px; height: 20px; border-radius: 50%; background: #e2cb99; }
+        .circle-2 { margin-left: -10px; opacity: 0.7; }
+        .form-container { background: #000000; padding: 0 15px; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; color: #94a3b8; margin-bottom: 6px; }
+        .form-input { 
+            width: 100%; 
+            padding: 14px; 
+            border: 1px solid #333333; 
+            border-radius: 10px; 
+            font-size: 15px; 
+            box-sizing: border-box; 
+            background-color: #111111; 
+            color: white; 
+        }
+        .form-input:focus { border-color: #10b981; outline: none; }
+        .form-input[readonly] { background-color: #1a1a1a; color: #94a3b8; cursor: not-allowed; }
+        .btn-bank { 
+            width: 100%; 
+            background-color: #10b981; 
+            color: #000000; 
+            border: none; 
+            padding: 15px; 
+            border-radius: 10px; 
+            font-size: 16px; 
+            font-weight: 800; 
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .status-msg { margin-top: 15px; padding: 12px; border-radius: 10px; font-size: 14px; display: none; text-align: center; font-weight: 600; }
+        .success { background-color: #10b981; color: #000000; display: block; }
+        .error { background-color: #7f1d1d; color: #fca5a5; display: block; border: 1px solid #b91c1c; }
+        .history-container {
+            margin: 10px 15px; background: #111111; border-radius: 12px; padding: 10px; border: 1px solid #222222; max-height: 250px; overflow-y: auto;
+        }
+        .history-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 8px; border-bottom: 1px solid #222222; }
+        .history-item:last-child { border-bottom: none; }
+        .tx-info { display: flex; flex-direction: column; gap: 4px; }
+        .tx-user { font-size: 14px; font-weight: bold; color: #ffffff; }
+        .tx-date { font-size: 11px; color: #64748b; }
+        .tx-amount { font-size: 15px; font-weight: bold; color: #10b981; }
+        
+        /* Modales */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 1000; padding: 20px; box-sizing: border-box;
+        }
+        .modal-content { background: #111111; padding: 24px; border-radius: 16px; width: 100%; max-width: 360px; border: 2px solid #10b981; position: relative; }
+        .modal-title { font-size: 16px; font-weight: bold; margin-bottom: 15px; text-align: center; color: #10b981; text-transform: uppercase; }
+        .modal-buttons { display: flex; gap: 10px; margin-top: 15px; }
+        .btn-modal { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .btn-add { background-color: #10b981; color: black; }
+        .btn-remove { background-color: #ef4444; color: white; }
+        .btn-cancel { background-color: #333333; color: white; width: 100%; margin-top: 10px; }
+        .info-text-line { font-size: 14px; margin-bottom: 8px; color: #cbd5e1; display: flex; justify-content: space-between; }
+        .info-text-line span { font-weight: bold; color: #ffffff; }
+        .statement-box { background: #050505; border: 1px solid #222222; border-radius: 8px; padding: 12px; max-height: 180px; overflow-y: auto; font-size: 13px; }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">Bancarlo Cloud Móvil</div>
+
+    <div class="section-header">
+        <h2 class="section-title">Tu Cuenta Bancaria Digital</h2>
+    </div>
+    <div class="form-container" style="margin-bottom: 20px;">
+        <div class="form-group">
+            <label for="my-email">Tu Correo Electrónico (Mi Cuenta)</label>
+            <input type="email" id="my-email" class="form-input" placeholder="ejemplo@gmail.com" value="luissantiagocarrizaleszamora@gmail.com" readonly>
+        </div>
+    </div>
+
+    <div style="padding: 0 15px;">
+        <div id="live-alert-box" class="status-msg success" style="background-color: #3b82f6; color: white; margin-bottom: 10px; display: none;"></div>
+    </div>
+
+    <div class="section-header">
+        <h2 class="section-title">Mis Tarjetas Gold Cloud</h2>
+    </div>
+    <div class="carousel-container">
+        <div id="card-debito" class="bank-card active" onclick="selectCard('debito')">
+            <div class="card-top">
+                <span>GOLD</span>
+                <div class="info-trigger-circle" onclick="openCardInfoModal('debito', event)">➔</div>
+            </div>
+            <div class="chip-contactless"><div class="chip"></div></div>
+            <div class="card-label">Saldo Débito (En la Nube)</div>
+            <div class="card-balance" id="balance-debito">$0.00</div>
+            <div class="card-bottom">
+                <div class="card-brand">Bancarlo</div>
+                <div class="mastercard-logo">
+                    <span class="mc-text">Debito</span>
+                    <div class="circles"><div class="circle-1"></div><div class="circle-2"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="card-credito" class="bank-card" onclick="selectCard('credito')">
+            <div class="card-top">
+                <span>GOLD</span>
+                <div class="info-trigger-circle" onclick="openCardInfoModal('credito', event)">➔</div>
+            </div>
+            <div class="chip-contactless"><div class="chip"></div></div>
+            <div class="card-label">Crédito Disponible (Límite: $2,000)</div>
+            <div class="card-balance" id="balance-credito">$2,000.00</div>
+            <div class="card-bottom">
+                <div class="card-brand">Bancarlo</div>
+                <div class="mastercard-logo">
+                    <span class="mc-text">Credito</span>
+                    <div class="circles"><div class="circle-1"></div><div class="circle-2"></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div style="padding: 0 15px; margin-bottom: 15px;">
+        <button class="btn-bank" style="background-color: #334155; color: white; padding: 10px; font-size: 13px;" onclick="openAdminModal()">⚙️ Administrar Fondos Tarjeta Seleccionada</button>
+    </div>
+
+    <div class="section-header">
+        <h2 class="section-title">Operación de Envío en Tiempo Real</h2>
+    </div>
+    <div class="form-container">
+        <form id="bank-transfer-form">
+            <div class="form-group">
+                <label for="dest-email">Correo del Amigo Destinatario</label>
+                <input type="email" id="dest-email" class="form-input" placeholder="amigo@correo.com" required>
+            </div>
+            <div class="form-group">
+                <label for="amount">Monto a Enviar ($)</label>
+                <input type="number" id="amount" class="form-input" min="1" placeholder="0.00" required>
+            </div>
+            <div class="form-group">
+                <label for="secure-password">Contraseña Bancaria (NIP)</label>
+                <input type="password" id="secure-password" class="form-input" placeholder="Introduce tu clave transaccional" required>
+            </div>
+            <button type="submit" class="btn-bank" id="btn-submit">Confirmar Envío Seguro Cloud</button>
+        </form>
+        <div id="status-box" class="status-msg"></div>
+    </div>
+
+    <div class="section-header">
+        <h2 class="section-title">Historial de Envíos Guardados</h2>
+        <button type="button" class="btn-reset-history" onclick="clearHistory()">Reiniciar Historial</button>
+    </div>
+    <div class="history-container" id="history-box"></div>
+
+    <!-- BOTÓN FINAL PARA CAMBIAR EL NIP -->
+    <div style="padding: 20px 15px 10px 15px;">
+        <button class="btn-bank" style="background-color: #1e293b; color: #10b981; border: 1px solid #10b981; padding: 12px; font-size: 13px;" onclick="openNipAuthModal()">🔒 Configuración de NIP Transaccional</button>
+    </div>
+
+    <!-- MODAL 1: AUTENTICACIÓN PARA ACCEDER AL CAMBIO DE NIP -->
+    <div id="nip-auth-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title">Acceso Protegido</div>
+            <div class="form-group">
+                <label>Contraseña Maestra Obligatoria</label>
+                <input type="password" id="nip-master-pass" class="form-input" placeholder="Introduce la contraseña maestra">
+            </div>
+            <button class="btn-bank" onclick="verifyMasterPassForNip()">Ingresar</button>
+            <button class="btn-modal btn-cancel" onclick="closeModal('nip-auth-modal')">Cancelar</button>
+            <div id="nip-auth-status" class="status-msg"></div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: PANEL PARA CAMBIAR EL NIP -->
+    <div id="nip-change-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title">Cambiar NIP Transaccional</div>
+            <p style="font-size: 12px; color: #94a3b8; text-align: center; margin-top: -5px; margin-bottom: 15px;">Este NIP protegerá únicamente tus envíos a amigos.</p>
+            <div class="form-group">
+                <label>Nuevo NIP de Seguridad</label>
+                <input type="password" id="new-nip-value" class="form-input" placeholder="Escribe tu nueva contraseña">
+            </div>
+            <button class="btn-bank" onclick="saveNewNip()">Guardar Nuevo NIP</button>
+            <button class="btn-modal btn-cancel" onclick="closeModal('nip-change-modal')">Cerrar</button>
+            <div id="nip-change-status" class="status-msg"></div>
+        </div>
+    </div>
+
+    <div id="card-info-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title" id="info-modal-title">Información de Tarjeta</div>
+            <div id="info-modal-body" style="margin-bottom: 20px;"></div>
+            <button class="btn-bank" id="btn-open-statement" style="font-size: 14px; padding: 12px;">Ver Estado de Cuenta</button>
+            <button class="btn-modal btn-cancel" onclick="closeModal('card-info-modal')">Cerrar</button>
+        </div>
+    </div>
+
+    <div id="card-statement-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title" id="statement-modal-title">Estado de Cuenta</div>
+            <div class="statement-box" id="statement-modal-body"></div>
+            <button class="btn-modal btn-cancel" onclick="closeModal('card-statement-modal')" style="margin-top: 15px;">Regresar</button>
+        </div>
+    </div>
+
+    <!-- MODAL ADMINISTRATIVO DE FONDOS (TEXTOS MODIFICADOS) -->
+    <div id="admin-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title" id="modal-card-title">Gestionar Fondos</div>
+            <div class="form-group">
+                <label>Cantidad ($)</label>
+                <input type="number" id="modal-amount" class="form-input" placeholder="0.00">
+            </div>
+            <div class="form-group">
+                <label>Contraseña del Administrador</label>
+                <input type="password" id="modal-password" class="form-input" placeholder="Introduce tu contraseña">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-modal btn-add" onclick="modifyFunds('add')">Agregar</button>
+                <button class="btn-modal btn-remove" onclick="modifyFunds('remove')">Quitar</button>
+            </div>
+            <button class="btn-modal btn-cancel" onclick="closeModal('admin-modal')">Cancelar</button>
+            <div id="modal-status" class="status-msg"></div>
+        </div>
+    </div>
+
+    <script>
+        emailjs.init("Srl82h5JL4_eDWXqg");
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDNnq2YzWJLi_YfPNqgRY4oCMKOJQjrOGw",
+            databaseURL: "https://bancarlo-23297-default-rtdb.firebaseio.com",
+            projectId: "bancarlo-23297",
+        };
+        
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        let myAccountEmail = "";
+        let myCleanKey = "";
+        let balances = { debito: 0.00, credito: 2000.00 };
+        let selectedCardType = 'debito';
+        let isInitialLoad = true;
+        let currentRef = null; 
+
+        const cardDetailsData = {
+            debito: { numero: "**** **** **** 4829", vencimiento: "12/30", cvv: "395", tipo: "Cloud Débito Internacional", titular: "Carlo Itzae" },
+            credito: { numero: "**** **** **** 8841", vencimiento: "06/29", cvv: "142", tipo: "Cloud Crédito Gold Oro", titular: "Carlo Itzae" }
+        };
+
+        function getActiveNip() {
+            const savedNip = localStorage.getItem('bancarlo_user_nip');
+            return savedNip ? savedNip : 'bancarlo052'; 
+        }
+
+        function openNipAuthModal() {
+            document.getElementById('nip-master-pass').value = '';
+            document.getElementById('nip-auth-status').style.display = 'none';
+            document.getElementById('nip-auth-modal').style.display = 'flex';
+        }
+
+        function verifyMasterPassForNip() {
+            const masterPassInput = document.getElementById('nip-master-pass').value;
+            const statusBox = document.getElementById('nip-auth-status');
+
+            if (masterPassInput === 'bancarlo052') {
+                closeModal('nip-auth-modal');
+                document.getElementById('new-nip-value').value = getActiveNip();
+                document.getElementById('nip-change-status').style.display = 'none';
+                document.getElementById('nip-change-modal').style.display = 'flex';
+            } else {
+                statusBox.className = "status-msg error";
+                statusBox.innerText = "❌ Contraseña maestra incorrecta.";
+            }
+        }
+
+        function saveNewNip() {
+            const newNip = document.getElementById('new-nip-value').value.trim();
+            const statusBox = document.getElementById('nip-change-status');
+
+            if (!newNip) {
+                statusBox.className = "status-msg error";
+                statusBox.innerText = "❌ El NIP no puede estar vacío.";
+                return;
+            }
+
+            localStorage.setItem('bancarlo_user_nip', newNip);
+            statusBox.className = "status-msg success";
+            statusBox.innerText = "✅ NIP guardado y actualizado correctamente.";
+            
+            setTimeout(() => {
+                closeModal('nip-change-modal');
+            }, 1500);
+        }
+
+        function cleanEmailKey(email) {
+            return email.toLowerCase().replace(/\./g, '_');
+        }
+
+        function selectCard(type) {
+            selectedCardType = type;
+            document.querySelectorAll('.bank-card').forEach(card => card.classList.remove('active'));
+            document.getElementById(`card-${type}`).classList.add('active');
+        }
+
+        function connectToMyAccount() {
+            myAccountEmail = document.getElementById('my-email').value.trim();
+            if(!myAccountEmail || !myAccountEmail.includes('@')) return;
+
+            const newCleanKey = cleanEmailKey(myAccountEmail);
+            if (newCleanKey === myCleanKey) return;
+
+            if (currentRef) currentRef.off();
+
+            myCleanKey = newCleanKey;
+            isInitialLoad = true; 
+
+            currentRef = database.ref('users/' + myCleanKey);
+            currentRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                
+                if (data) {
+                    let oldDebito = balances.debito;
+                    balances.debito = data.debito !== undefined ? parseFloat(data.debito) : 0.00;
+                    balances.credito = data.credito !== undefined ? parseFloat(data.credito) : 2000.00;
+
+                    if (!isInitialLoad && balances.debito > oldDebito) {
+                        let transferReceived = balances.debito - oldDebito;
+                        showLiveTransferAlert(transferReceived);
+                    }
+                } else {
+                    balances = { debito: 100.00, credito: 2000.00 };
+                    database.ref('users/' + myCleanKey).set(balances);
+                }
+
+                isInitialLoad = false; 
+
+                document.getElementById('balance-debito').innerText = '$' + balances.debito.toLocaleString('es-MX', {minimumFractionDigits: 2});
+                document.getElementById('balance-credito').innerText = '$' + balances.credito.toLocaleString('es-MX', {minimumFractionDigits: 2});
+            });
+        }
+
+        function showLiveTransferAlert(amount) {
+            const alertBox = document.getElementById('live-alert-box');
+            alertBox.innerText = `📩 ¡Recibiste una transferencia en vivo de $${amount.toFixed(2)} MXN!`;
+            alertBox.style.display = 'block';
+            setTimeout(() => { alertBox.style.display = 'none'; }, 7000);
+        }
+
+        function loadHistory() {
+            const historyBox = document.getElementById('history-box');
+            const savedHistory = localStorage.getItem('bank_history');
+            
+            if (savedHistory) {
+                const transactions = JSON.parse(savedHistory);
+                if(transactions.length === 0) {
+                    showEmptyHistoryMessage();
+                    return;
+                }
+                historyBox.innerHTML = '';
+                transactions.forEach(tx => {
+                    renderTransaction(tx.email, tx.date, tx.amount);
+                });
+            } else {
+                showEmptyHistoryMessage();
+            }
+        }
+
+        function showEmptyHistoryMessage() {
+            document.getElementById('history-box').innerHTML = `
+                <div id="empty-history-msg" style="text-align: center; color: #64748b; font-size: 13px; padding: 15px;">
+                    No se registran envíos en esta sesión.
+                </div>`;
+        }
+
+        function renderTransaction(email, date, amount) {
+            const historyBox = document.getElementById('history-box');
+            const emptyMsg = document.getElementById('empty-history-msg');
+            if (emptyMsg) emptyMsg.remove();
+
+            const itemHtml = `
+                <div class="history-item">
+                    <div class="tx-info">
+                        <div class="tx-user">Para Cloud: ${email}</div>
+                        <div class="tx-date">${date}</div>
+                    </div>
+                    <div class="tx-amount" style="color: #ef4444;">-$${parseFloat(amount).toFixed(2)}</div>
+                </div>`;
+            historyBox.insertAdjacentHTML('afterbegin', itemHtml);
+        }
+
+        function saveTransactionToStorage(email, date, amount) {
+            let transactions = [];
+            const savedHistory = localStorage.getItem('bank_history');
+            if (savedHistory) {
+                transactions = JSON.parse(savedHistory);
+            }
+            transactions.push({ email, date, amount });
+            localStorage.setItem('bank_history', JSON.stringify(transactions));
+        }
+
+        function clearHistory() {
+            localStorage.removeItem('bank_history');
+            showEmptyHistoryMessage();
+        }
+
+        connectToMyAccount();
+        loadHistory();
+
+        function openCardInfoModal(type, event) {
+            if(event) event.stopPropagation();
+            const info = cardDetailsData[type];
+            document.getElementById('info-modal-title').innerText = `Detalles: ${type.toUpperCase()}`;
+            
+            let htmlInfo = `
+                <div class="info-text-line">Titular: <span>${info.titular}</span></div>
+                <div class="info-text-line">Número: <span>${info.numero}</span></div>
+                <div class="info-text-line">Vence: <span>${info.vencimiento}</span></div>
+                <div class="info-text-line">CVV: <span>***</span></div>
+                <div class="info-text-line">Categoría: <span>${info.tipo}</span></div>
+                <div class="info-text-line">Saldo Actual: <span>$${balances[type].toFixed(2)}</span></div>
+            `;
+            document.getElementById('info-modal-body').innerHTML = htmlInfo;
+            document.getElementById('btn-open-statement').onclick = function() { openCardStatementModal(type); };
+            document.getElementById('card-info-modal').style.display = 'flex';
+        }
+
+        function openCardStatementModal(type) {
+            document.getElementById('statement-modal-title').innerText = `Estado de Cuenta (${type.toUpperCase()})`;
+            let htmlStatement = `
+                <div style="color:#10b981; font-weight:bold; margin-bottom:10px; text-align:center;">
+                    Balance Contable: $${balances[type].toFixed(2)} MXN
+                </div>
+                <hr style="border-color:#222; margin:10px 0;">
+                <div style="display:flex; justify-content:space-between; padding:5px 0; color:#888;">
+                    <span>Concepto</span><span>Monto</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; padding:5px 0;">
+                    <span>Apertura de Cuenta Cloud</span><span style="color:#10b981;">+ $${type === 'debito' ? '100.00' : '2000.00'}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; padding:5px 0;">
+                    <span>Sincronización de Saldo</span><span style="color:#10b981;">Al Instante</span>
+                </div>
+            `;
+            document.getElementById('statement-modal-body').innerHTML = htmlStatement;
+            document.getElementById('card-statement-modal').style.display = 'flex';
+        }
+
+        function openAdminModal() {
+            document.getElementById('modal-card-title').innerText = `Ajustar Fondos Cloud: ${selectedCardType.toUpperCase()}`;
+            document.getElementById('admin-modal').style.display = 'flex';
+            document.getElementById('modal-status').style.display = 'none';
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).style.display = 'none';
+            if(id === 'admin-modal') {
+                document.getElementById('modal-amount').value = '';
+                document.getElementById('modal-password').value = '';
+            }
+        }
+
+        function modifyFunds(operation) {
+            const amount = parseFloat(document.getElementById('modal-amount').value);
+            const password = document.getElementById('modal-password').value;
+            const modalStatus = document.getElementById('modal-status');
+
+            if (password !== 'ban052') {
+                modalStatus.className = "status-msg error";
+                modalStatus.innerText = "❌ Contraseña administrativa incorrecta.";
+                return;
+            }
+            if (!amount || amount <= 0) {
+                modalStatus.className = "status-msg error";
+                modalStatus.innerText = "❌ Ingresa una cantidad válida.";
+                return;
+            }
+
+            let newBalance = balances[selectedCardType];
+            if (operation === 'add') {
+                if (selectedCardType === 'credito' && (balances.credito + amount) > 2000.00) {
+                    modalStatus.className = "status-msg error";
+                    modalStatus.innerText = "❌ No puedes exceder el límite de crédito de $2,000.00.";
+                    return;
+                }
+                newBalance += amount;
+            } else {
+                if (amount > balances[selectedCardType]) {
+                    modalStatus.className = "status-msg error";
+                    modalStatus.innerText = "❌ Fondos insuficientes en la tarjeta.";
+                    return;
+                }
+                newBalance -= amount;
+            }
+
+            database.ref('users/' + myCleanKey + '/' + selectedCardType).set(newBalance)
+            .then(() => { closeModal('admin-modal'); })
+            .catch(err => {
+                modalStatus.className = "status-msg error";
+                modalStatus.innerText = "❌ Error en Firebase.";
+            });
+        }
+
+        document.getElementById('bank-transfer-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const destEmail = document.getElementById('dest-email').value.trim();
+            const amount = parseFloat(document.getElementById('amount').value);
+            const password = document.getElementById('secure-password').value;
+            const statusBox = document.getElementById('status-box');
+            const btn = document.getElementById('btn-submit');
+
+            if (password !== getActiveNip()) {
+                statusBox.className = "status-msg error";
+                statusBox.innerText = "❌ Contraseña bancaria (NIP) incorrecta.";
+                return;
+            }
+            if (amount > balances[selectedCardType]) {
+                statusBox.className = "status-msg error";
+                statusBox.innerText = "❌ No cuentas con fondos suficientes.";
+                return;
+            }
+            if (destEmail.toLowerCase() === myAccountEmail.toLowerCase()) {
+                statusBox.className = "status-msg error";
+                statusBox.innerText = "❌ No puedes transferirte a ti mismo.";
+                return;
+            }
+
+            btn.innerText = "Procesando en la nube...";
+            btn.disabled = true;
+
+            const destCleanKey = cleanEmailKey(destEmail);
+
+            database.ref('users/' + destCleanKey).once('value').then((snapshot) => {
+                const destData = snapshot.val();
+                
+                let friendCurrentDebito = destData ? (destData.debito || 0.00) : 0.00;
+                let friendCurrentCredito = destData ? (destData.credito !== undefined ? destData.credito : 2000.00) : 2000.00;
+
+                let myNewBalance = balances[selectedCardType] - amount;
+                let friendNewDebito = friendCurrentDebito + amount;
+
+                let updates = {};
+                updates['/users/' + myCleanKey + '/' + selectedCardType] = myNewBalance;
+                updates['/users/' + destCleanKey + '/debito'] = friendNewDebito;
+                if(!destData) {
+                    updates['/users/' + destCleanKey + '/credito'] = friendCurrentCredito;
+                }
+
+                database.ref().update(updates).then(() => {
+                    const templateParams = { to_email: destEmail, from_email: myAccountEmail, amount_sent: amount.toFixed(2), card_used: selectedCardType.toUpperCase() };
+                    emailjs.send('service_z4nvp7l', 'template_04odl0v', templateParams)
+                    .then(() => console.log("Correo enviado con éxito"))
+                    .catch(err => console.error("Fallo al enviar correo por EmailJS:", err));
+
+                    const now = new Date();
+                    const formattedDate = now.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+                    
+                    renderTransaction(destEmail, formattedDate, amount);
+                    saveTransactionToStorage(destEmail, formattedDate, amount);
+
+                    statusBox.className = "status-msg success";
+                    statusBox.innerText = `💸 ¡Transferencia en línea exitosa! Saldo actualizado para ambos dispositivos.`;
+                    
+                    document.getElementById('bank-transfer-form').reset();
+                    btn.disabled = false;
+                    btn.innerText = "Confirmar Envío Seguro Cloud";
+                }).catch((error) => {
+                    statusBox.className = "status-msg error";
+                    statusBox.innerText = "❌ Error al conectar con la base de datos de Firebase.";
+                    btn.disabled = false;
+                    btn.innerText = "Confirmar Envío Seguro Cloud";
+                });
+            });
+        });
+    </script>
+</body>
+</html>
