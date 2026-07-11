@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bancarlo Cloud Móvil v5.2</title>
+    <title>Bancarlo Cloud Móvil v5.3</title>
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -86,6 +86,24 @@
             min-height: 200px;
         }
         .bank-card.active { border-color: #e2cb99; transform: scale(1.02); }
+        
+        /* Estilo específico para la Tarjeta de Ahorro */
+        .bank-card.saving-card {
+            background: linear-gradient(135deg, #064e3b 0%, #022c22 100%);
+            color: #34d399;
+            border: 2px solid #065f46;
+        }
+        .bank-card.saving-card.active { border-color: #34d399; }
+        .saving-badge {
+            background-color: #34d399;
+            color: #000000;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+
         .card-top { display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 13px; letter-spacing: 1px; }
         
         .info-trigger-circle {
@@ -108,16 +126,21 @@
 
         .chip-contactless { margin-top: 15px; display: flex; flex-direction: column; gap: 4px; }
         .chip { width: 38px; height: 28px; background: linear-gradient(135deg, #e2cb99 0%, #b89855 100%); border-radius: 6px; }
+        .bank-card.saving-card .chip { background: linear-gradient(135deg, #a7f3d0 0%, #34d399 100%); }
         .contactless { font-size: 16px; margin-left: 4px; }
         .card-label { font-size: 11px; text-transform: uppercase; color: #888888; letter-spacing: 1px; margin-top: 20px; }
+        .bank-card.saving-card .card-label { color: #a7f3d0; opacity: 0.8; }
         .card-balance { font-size: 28px; font-weight: bold; margin-top: 2px; color: #ffffff; }
         .card-bottom { margin-top: 20px; display: flex; justify-content: space-between; align-items: flex-end; }
         .card-brand { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
         .mastercard-logo { display: flex; align-items: center; gap: 5px; }
         .mc-text { font-size: 11px; font-weight: bold; color: #888888; }
+        .bank-card.saving-card .mc-text { color: #a7f3d0; }
         .circles { display: flex; }
         .circle-1, .circle-2 { width: 20px; height: 20px; border-radius: 50%; background: #e2cb99; }
+        .bank-card.saving-card .circle-1, .bank-card.saving-card .circle-2 { background: #34d399; }
         .circle-2 { margin-left: -10px; opacity: 0.7; }
+        
         .form-container { background: #000000; padding: 0 15px; }
         .form-group { margin-bottom: 16px; }
         .form-group label { display: block; font-size: 13px; font-weight: 600; color: #94a3b8; margin-bottom: 6px; }
@@ -209,6 +232,27 @@
                 <div class="card-brand">Bancarlo</div>
                 <div class="mastercard-logo">
                     <span class="mc-text">Debito</span>
+                    <div class="circles"><div class="circle-1"></div><div class="circle-2"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- NUEVA TARJETA DE CUENTA DE AHORRO AL 4% ANUAL -->
+        <div id="card-ahorro" class="bank-card saving-card" onclick="selectCard('ahorro')">
+            <div class="card-top">
+                <div style="display: flex; align-items: center;">
+                    <span>GREEN</span>
+                    <span class="saving-badge">4% REND.</span>
+                </div>
+                <div class="info-trigger-circle" style="background-color: #34d399;" onclick="openCardInfoModal('ahorro', event)">➔</div>
+            </div>
+            <div class="chip-contactless"><div class="chip"></div></div>
+            <div class="card-label">Bóveda de Ahorro Inteligente</div>
+            <div class="card-balance" id="balance-ahorro" style="text-shadow: 0 0 10px rgba(52, 211, 153, 0.2); font-variant-numeric: tabular-nums;">$0.00</div>
+            <div class="card-bottom">
+                <div class="card-brand" style="color: #ffffff;">Bancarlo</div>
+                <div class="mastercard-logo">
+                    <span class="mc-text">Ahorro</span>
                     <div class="circles"><div class="circle-1"></div><div class="circle-2"></div></div>
                 </div>
             </div>
@@ -315,7 +359,7 @@
         </div>
     </div>
 
-    <!-- MODAL ADMINISTRATIVO DE FONDOS (TEXTOS MODIFICADOS) -->
+    <!-- MODAL ADMINISTRATIVO DE FONDOS -->
     <div id="admin-modal" class="modal">
         <div class="modal-content">
             <div class="modal-title" id="modal-card-title">Gestionar Fondos</div>
@@ -350,13 +394,17 @@
 
         let myAccountEmail = "";
         let myCleanKey = "";
-        let balances = { debito: 0.00, credito: 2000.00 };
+        // Añadido 'ahorro' al objeto inicial de balances
+        let balances = { debito: 0.00, ahorro: 0.00, credito: 2000.00 };
         let selectedCardType = 'debito';
         let isInitialLoad = true;
         let currentRef = null; 
+        let interestInterval = null; // Guardará el temporizador del rendimiento activo
 
+        // Actualizados los detalles incluyendo la nueva Bóveda de Ahorro inteligente
         const cardDetailsData = {
             debito: { numero: "**** **** **** 4829", vencimiento: "12/30", cvv: "395", tipo: "Cloud Débito Internacional", titular: "Carlo Itzae" },
+            ahorro: { numero: "**** **** **** 5512", vencimiento: "08/31", cvv: "702", tipo: "Bóveda de Ahorro Alto Rendimiento (4% Anual)", titular: "Carlo Itzae" },
             credito: { numero: "**** **** **** 8841", vencimiento: "06/29", cvv: "142", tipo: "Cloud Crédito Gold Oro", titular: "Carlo Itzae" }
         };
 
@@ -423,6 +471,7 @@
             if (newCleanKey === myCleanKey) return;
 
             if (currentRef) currentRef.off();
+            if (interestInterval) clearInterval(interestInterval);
 
             myCleanKey = newCleanKey;
             isInitialLoad = true; 
@@ -434,6 +483,7 @@
                 if (data) {
                     let oldDebito = balances.debito;
                     balances.debito = data.debito !== undefined ? parseFloat(data.debito) : 0.00;
+                    balances.ahorro = data.ahorro !== undefined ? parseFloat(data.ahorro) : 0.00;
                     balances.credito = data.credito !== undefined ? parseFloat(data.credito) : 2000.00;
 
                     if (!isInitialLoad && balances.debito > oldDebito) {
@@ -441,15 +491,36 @@
                         showLiveTransferAlert(transferReceived);
                     }
                 } else {
-                    balances = { debito: 100.00, credito: 2000.00 };
+                    balances = { debito: 100.00, ahorro: 0.00, credito: 2000.00 };
                     database.ref('users/' + myCleanKey).set(balances);
                 }
 
                 isInitialLoad = false; 
 
                 document.getElementById('balance-debito').innerText = '$' + balances.debito.toLocaleString('es-MX', {minimumFractionDigits: 2});
+                document.getElementById('balance-ahorro').innerText = '$' + balances.ahorro.toLocaleString('es-MX', {minimumFractionDigits: 4});
                 document.getElementById('balance-credito').innerText = '$' + balances.credito.toLocaleString('es-MX', {minimumFractionDigits: 2});
             });
+
+            // Lógica de simulación interactiva: Genera intereses en vivo segundo a segundo
+            // Tasa del 4% anual distribuido en segundos dentro de un año de 365 días
+            interestInterval = setInterval(() => {
+                if (balances.ahorro > 0) {
+                    const annualRate = 0.04;
+                    const secondsInYear = 365 * 24 * 60 * 60;
+                    const interestPerSecond = balances.ahorro * (annualRate / secondsInYear);
+                    
+                    let intermediateBalance = balances.ahorro + interestPerSecond;
+                    balances.ahorro = intermediateBalance;
+                    
+                    document.getElementById('balance-ahorro').innerText = '$' + balances.ahorro.toLocaleString('es-MX', {minimumFractionDigits: 4});
+                    
+                    // Guarda el balance acumulado silenciosamente de forma periódica en Firebase cada 5 segundos
+                    if (Math.floor(Date.now() / 1000) % 5 === 0) {
+                        database.ref('users/' + myCleanKey + '/ahorro').set(parseFloat(balances.ahorro.toFixed(6)));
+                    }
+                }
+            }, 1000);
         }
 
         function showLiveTransferAlert(amount) {
@@ -539,6 +610,9 @@
 
         function openCardStatementModal(type) {
             document.getElementById('statement-modal-title').innerText = `Estado de Cuenta (${type.toUpperCase()})`;
+            
+            let tasaTexto = type === 'ahorro' ? ' Rendimiento Fijo: +4.00% Anual Compuesto' : ' Sincronización de Saldo: Al Instante';
+            
             let htmlStatement = `
                 <div style="color:#10b981; font-weight:bold; margin-bottom:10px; text-align:center;">
                     Balance Contable: $${balances[type].toFixed(2)} MXN
@@ -548,10 +622,10 @@
                     <span>Concepto</span><span>Monto</span>
                 </div>
                 <div style="display:flex; justify-content:space-between; padding:5px 0;">
-                    <span>Apertura de Cuenta Cloud</span><span style="color:#10b981;">+ $${type === 'debito' ? '100.00' : '2000.00'}</span>
+                    <span>Apertura de Cuenta Cloud</span><span style="color:#10b981;">+ $${type === 'credito' ? '2000.00' : (type === 'debito' ? '100.00' : '0.00')}</span>
                 </div>
                 <div style="display:flex; justify-content:space-between; padding:5px 0;">
-                    <span>Sincronización de Saldo</span><span style="color:#10b981;">Al Instante</span>
+                    <span>Regulación del Activo</span><span style="color:#34d399;">${tasaTexto}</span>
                 </div>
             `;
             document.getElementById('statement-modal-body').innerHTML = htmlStatement;
@@ -605,7 +679,7 @@
                 newBalance -= amount;
             }
 
-            database.ref('users/' + myCleanKey + '/' + selectedCardType).set(newBalance)
+            database.ref('users/' + myCleanKey + '/' + selectedCardType).set(parseFloat(newBalance.toFixed(6)))
             .then(() => { closeModal('admin-modal'); })
             .catch(err => {
                 modalStatus.className = "status-msg error";
@@ -647,15 +721,17 @@
                 
                 let friendCurrentDebito = destData ? (destData.debito || 0.00) : 0.00;
                 let friendCurrentCredito = destData ? (destData.credito !== undefined ? destData.credito : 2000.00) : 2000.00;
+                let friendCurrentAhorro = destData ? (destData.ahorro || 0.00) : 0.00;
 
                 let myNewBalance = balances[selectedCardType] - amount;
                 let friendNewDebito = friendCurrentDebito + amount;
 
                 let updates = {};
-                updates['/users/' + myCleanKey + '/' + selectedCardType] = myNewBalance;
-                updates['/users/' + destCleanKey + '/debito'] = friendNewDebito;
+                updates['/users/' + myCleanKey + '/' + selectedCardType] = parseFloat(myNewBalance.toFixed(6));
+                updates['/users/' + destCleanKey + '/debito'] = parseFloat(friendNewDebito.toFixed(6));
                 if(!destData) {
                     updates['/users/' + destCleanKey + '/credito'] = friendCurrentCredito;
+                    updates['/users/' + destCleanKey + '/ahorro'] = friendCurrentAhorro;
                 }
 
                 database.ref().update(updates).then(() => {
