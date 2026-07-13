@@ -87,7 +87,6 @@
         }
         .bank-card.active { border-color: #e2cb99; transform: scale(1.02); }
         
-        /* Estilo específico para la Tarjeta de Ahorro */
         .bank-card.saving-card {
             background: linear-gradient(135deg, #064e3b 0%, #022c22 100%);
             color: #34d399;
@@ -182,7 +181,6 @@
         .tx-date { font-size: 11px; color: #64748b; }
         .tx-amount { font-size: 15px; font-weight: bold; color: #10b981; }
         
-        /* Modales */
         .modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 1000; padding: 20px; box-sizing: border-box;
         }
@@ -237,7 +235,6 @@
             </div>
         </div>
 
-        <!-- NUEVA TARJETA DE CUENTA DE AHORRO AL 4% ANUAL -->
         <div id="card-ahorro" class="bank-card saving-card" onclick="selectCard('ahorro')">
             <div class="card-top">
                 <div style="display: flex; align-items: center;">
@@ -308,12 +305,10 @@
     </div>
     <div class="history-container" id="history-box"></div>
 
-    <!-- BOTÓN FINAL PARA CAMBIAR EL NIP -->
     <div style="padding: 20px 15px 10px 15px;">
         <button class="btn-bank" style="background-color: #1e293b; color: #10b981; border: 1px solid #10b981; padding: 12px; font-size: 13px;" onclick="openNipAuthModal()">🔒 Configuración de NIP Transaccional</button>
     </div>
 
-    <!-- MODAL 1: AUTENTICACIÓN PARA ACCEDER AL CAMBIO DE NIP -->
     <div id="nip-auth-modal" class="modal">
         <div class="modal-content">
             <div class="modal-title">Acceso Protegido</div>
@@ -327,7 +322,6 @@
         </div>
     </div>
 
-    <!-- MODAL 2: PANEL PARA CAMBIAR EL NIP -->
     <div id="nip-change-modal" class="modal">
         <div class="modal-content">
             <div class="modal-title">Cambiar NIP Transaccional</div>
@@ -359,7 +353,6 @@
         </div>
     </div>
 
-    <!-- MODAL ADMINISTRATIVO DE FONDOS -->
     <div id="admin-modal" class="modal">
         <div class="modal-content">
             <div class="modal-title" id="modal-card-title">Gestionar Fondos</div>
@@ -394,14 +387,12 @@
 
         let myAccountEmail = "";
         let myCleanKey = "";
-        // Añadido 'ahorro' al objeto inicial de balances
         let balances = { debito: 0.00, ahorro: 0.00, credito: 2000.00 };
         let selectedCardType = 'debito';
         let isInitialLoad = true;
         let currentRef = null; 
-        let interestInterval = null; // Guardará el temporizador del rendimiento activo
+        let interestInterval = null; 
 
-        // Actualizados los detalles incluyendo la nueva Bóveda de Ahorro inteligente
         const cardDetailsData = {
             debito: { numero: "**** **** **** 4829", vencimiento: "12/30", cvv: "395", tipo: "Cloud Débito Internacional", titular: "Carlo Itzae" },
             ahorro: { numero: "**** **** **** 5512", vencimiento: "08/31", cvv: "702", tipo: "Bóveda de Ahorro Alto Rendimiento (4% Anual)", titular: "Carlo Itzae" },
@@ -500,22 +491,31 @@
                 document.getElementById('balance-debito').innerText = '$' + balances.debito.toLocaleString('es-MX', {minimumFractionDigits: 2});
                 document.getElementById('balance-ahorro').innerText = '$' + balances.ahorro.toLocaleString('es-MX', {minimumFractionDigits: 4});
                 document.getElementById('balance-credito').innerText = '$' + balances.credito.toLocaleString('es-MX', {minimumFractionDigits: 2});
+
+                // Lógica de reinicio de crédito (cada 14 días)
+                const lastReset = localStorage.getItem('last_credit_reset');
+                const now = Date.now();
+                const fourteenDays = 14 * 24 * 60 * 60 * 1000;
+
+                if (!lastReset || (now - parseInt(lastReset)) > fourteenDays) {
+                    if (balances.credito < 2000.00) {
+                        balances.credito = 2000.00;
+                        database.ref('users/' + myCleanKey + '/credito').set(2000.00);
+                        localStorage.setItem('last_credit_reset', now.toString());
+                    } else if (!lastReset) {
+                        localStorage.setItem('last_credit_reset', now.toString());
+                    }
+                }
             });
 
-            // Lógica de simulación interactiva: Genera intereses en vivo segundo a segundo
-            // Tasa del 4% anual distribuido en segundos dentro de un año de 365 días
             interestInterval = setInterval(() => {
                 if (balances.ahorro > 0) {
                     const annualRate = 0.04;
                     const secondsInYear = 365 * 24 * 60 * 60;
                     const interestPerSecond = balances.ahorro * (annualRate / secondsInYear);
-                    
                     let intermediateBalance = balances.ahorro + interestPerSecond;
                     balances.ahorro = intermediateBalance;
-                    
                     document.getElementById('balance-ahorro').innerText = '$' + balances.ahorro.toLocaleString('es-MX', {minimumFractionDigits: 4});
-                    
-                    // Guarda el balance acumulado silenciosamente de forma periódica en Firebase cada 5 segundos
                     if (Math.floor(Date.now() / 1000) % 5 === 0) {
                         database.ref('users/' + myCleanKey + '/ahorro').set(parseFloat(balances.ahorro.toFixed(6)));
                     }
@@ -533,17 +533,11 @@
         function loadHistory() {
             const historyBox = document.getElementById('history-box');
             const savedHistory = localStorage.getItem('bank_history');
-            
             if (savedHistory) {
                 const transactions = JSON.parse(savedHistory);
-                if(transactions.length === 0) {
-                    showEmptyHistoryMessage();
-                    return;
-                }
+                if(transactions.length === 0) { showEmptyHistoryMessage(); return; }
                 historyBox.innerHTML = '';
-                transactions.forEach(tx => {
-                    renderTransaction(tx.email, tx.date, tx.amount);
-                });
+                transactions.forEach(tx => { renderTransaction(tx.email, tx.date, tx.amount); });
             } else {
                 showEmptyHistoryMessage();
             }
@@ -560,7 +554,6 @@
             const historyBox = document.getElementById('history-box');
             const emptyMsg = document.getElementById('empty-history-msg');
             if (emptyMsg) emptyMsg.remove();
-
             const itemHtml = `
                 <div class="history-item">
                     <div class="tx-info">
@@ -575,9 +568,7 @@
         function saveTransactionToStorage(email, date, amount) {
             let transactions = [];
             const savedHistory = localStorage.getItem('bank_history');
-            if (savedHistory) {
-                transactions = JSON.parse(savedHistory);
-            }
+            if (savedHistory) { transactions = JSON.parse(savedHistory); }
             transactions.push({ email, date, amount });
             localStorage.setItem('bank_history', JSON.stringify(transactions));
         }
@@ -594,7 +585,6 @@
             if(event) event.stopPropagation();
             const info = cardDetailsData[type];
             document.getElementById('info-modal-title').innerText = `Detalles: ${type.toUpperCase()}`;
-            
             let htmlInfo = `
                 <div class="info-text-line">Titular: <span>${info.titular}</span></div>
                 <div class="info-text-line">Número: <span>${info.numero}</span></div>
@@ -610,9 +600,7 @@
 
         function openCardStatementModal(type) {
             document.getElementById('statement-modal-title').innerText = `Estado de Cuenta (${type.toUpperCase()})`;
-            
             let tasaTexto = type === 'ahorro' ? ' Rendimiento Fijo: +4.00% Anual Compuesto' : ' Sincronización de Saldo: Al Instante';
-            
             let htmlStatement = `
                 <div style="color:#10b981; font-weight:bold; margin-bottom:10px; text-align:center;">
                     Balance Contable: $${balances[type].toFixed(2)} MXN
@@ -718,14 +706,11 @@
 
             database.ref('users/' + destCleanKey).once('value').then((snapshot) => {
                 const destData = snapshot.val();
-                
                 let friendCurrentDebito = destData ? (destData.debito || 0.00) : 0.00;
                 let friendCurrentCredito = destData ? (destData.credito !== undefined ? destData.credito : 2000.00) : 2000.00;
                 let friendCurrentAhorro = destData ? (destData.ahorro || 0.00) : 0.00;
-
                 let myNewBalance = balances[selectedCardType] - amount;
                 let friendNewDebito = friendCurrentDebito + amount;
-
                 let updates = {};
                 updates['/users/' + myCleanKey + '/' + selectedCardType] = parseFloat(myNewBalance.toFixed(6));
                 updates['/users/' + destCleanKey + '/debito'] = parseFloat(friendNewDebito.toFixed(6));
@@ -736,25 +721,19 @@
 
                 database.ref().update(updates).then(() => {
                     const templateParams = { to_email: destEmail, from_email: myAccountEmail, amount_sent: amount.toFixed(2), card_used: selectedCardType.toUpperCase() };
-                    emailjs.send('service_z4nvp7l', 'template_04odl0v', templateParams)
-                    .then(() => console.log("Correo enviado con éxito"))
-                    .catch(err => console.error("Fallo al enviar correo por EmailJS:", err));
-
+                    emailjs.send('service_z4nvp7l', 'template_04odl0v', templateParams);
                     const now = new Date();
                     const formattedDate = now.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-                    
                     renderTransaction(destEmail, formattedDate, amount);
                     saveTransactionToStorage(destEmail, formattedDate, amount);
-
                     statusBox.className = "status-msg success";
-                    statusBox.innerText = `💸 ¡Transferencia en línea exitosa! Saldo actualizado para ambos dispositivos.`;
-                    
+                    statusBox.innerText = `💸 ¡Transferencia en línea exitosa!`;
                     document.getElementById('bank-transfer-form').reset();
                     btn.disabled = false;
                     btn.innerText = "Confirmar Envío Seguro Cloud";
                 }).catch((error) => {
                     statusBox.className = "status-msg error";
-                    statusBox.innerText = "❌ Error al conectar con la base de datos de Firebase.";
+                    statusBox.innerText = "❌ Error en base de datos.";
                     btn.disabled = false;
                     btn.innerText = "Confirmar Envío Seguro Cloud";
                 });
